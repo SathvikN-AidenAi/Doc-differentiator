@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>DocDiff MVP</title>
+<style>
+  :root { color-scheme: dark; }
+  html, body { height: 100%; }
+  body {
+    margin: 0;
+    font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+    background: radial-gradient(1200px 800px at 20% -10%, #102040 0%, #0a0f1f 40%, #06080f 100%);
+    color: #e5e7eb;
+  }
+  .container { margin: 16px auto; max-width: 1200px; padding: 0 12px; }
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .panel { border: 1px solid #1f2937; border-radius: 12px; padding: 12px; background: rgba(17, 24, 39, 0.75); backdrop-filter: blur(6px); }
+  .diff-list { max-height: 50vh; overflow: auto; }
+  .badge { display: inline-block; padding: 2px 8px; border-radius: 999px; background:#273449; margin-left: 8px; font-size: 12px; color:#cbd5e1;}
+  .severity-Critical { background: #7f1d1d; }
+  .severity-Major { background: #7c2d12; }
+  .severity-Minor { background: #78350f; }
+  .severity-Cosmetic { background: #0b3a5b; }
+  .row { display: flex; gap: 8px; align-items: center; }
+  .filebox { border: 1px dashed #334155; padding: 12px; border-radius: 10px; background: rgba(30,41,59,.6); }
+  button {
+    background: linear-gradient(135deg, #3b82f6, #2563eb);
+    color: white; border: 0; padding: 10px 14px; border-radius: 10px;
+    font-weight: 600; cursor: pointer; box-shadow: 0 10px 25px rgba(37,99,235,.25);
+  }
+  button:disabled { opacity: .5; cursor: not-allowed; }
+  canvas { width: 100%; height: auto; border: 1px solid #1f2937; border-radius: 10px; background:#0b1220; }
+  .topbar {
+    position: sticky; top: 0; z-index: 20; padding: 12px;
+    background: linear-gradient(to right, rgba(15,23,42,.9), rgba(2,6,23,.9));
+    border: 1px solid #1f2937; border-radius: 12px; margin-bottom: 12px;
+    display:flex; align-items:center; justify-content:space-between; gap:12px;
+  }
+</style>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

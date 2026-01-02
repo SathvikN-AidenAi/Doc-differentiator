@@ -1,0 +1,18 @@
+fastapi
+uvicorn[standard]
+python-multipart
+PyMuPDF==1.24.10
+pdfminer.six
+Pillow
+imagehash
+scikit-image
+numpy
+pydantic
+python-docx==1.1.2
+reportlab==4.0.8   # anything >=4.0.4 and <4.1 is fine
+xhtml2pdf==0.2.15
+striprtf==0.0.26
+pandas==2.2.2
+openpyxl==3.1.5        
+markdown-it-py==3.0.0    # for .md → simple paragraphs
+
