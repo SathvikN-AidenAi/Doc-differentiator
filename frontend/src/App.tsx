@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import axios from "axios";
 import PdfViewer from "./components/PdfViewer";
 import "./index.css";
@@ -35,6 +35,7 @@ type ChatMessage = { sender: "user" | "bot"; text: string };
 const API_BASE = import.meta.env.VITE_API_BASE ?? "http://localhost:8000";
 
 export default function App() {
+  const [sessionId, setSessionId] = useState<string | null>(null);
   const [beforeFile, setBeforeFile] = useState<File | null>(null);
   const [afterFile, setAfterFile] = useState<File | null>(null);
   const [result, setResult] = useState<CompareResponse | null>(null);
@@ -45,8 +46,72 @@ export default function App() {
   const [chatInput, setChatInput] = useState("");
   const [chatLoading, setChatLoading] = useState(false);
 
+  // Session management
+  useEffect(() => {
+    const storedSessionId = localStorage.getItem('docdiff_session_id');
+    if (storedSessionId) {
+      loadSessionData(storedSessionId);
+    } else {
+      createNewSession();
+    }
+  }, []);
+
+  const createNewSession = async () => {
+    try {
+      const response = await axios.post(`${API_BASE}/sessions`);
+      const newSessionId = response.data.id;
+      setSessionId(newSessionId);
+      localStorage.setItem('docdiff_session_id', newSessionId);
+    } catch (e: any) {
+      console.error('Failed to create session:', e);
+      setError('Failed to create session. Please refresh the page.');
+    }
+  };
+
+  const loadSessionData = async (sessionId: string) => {
+    try {
+      const response = await axios.get(`${API_BASE}/sessions/${sessionId}`);
+      setSessionId(sessionId);
+
+      // Restore comparison if exists
+      if (response.data.comparison) {
+        setResult(response.data.comparison.result_json);
+      }
+
+      // Restore chat history
+      if (response.data.chat_messages && response.data.chat_messages.length > 0) {
+        const messages = response.data.chat_messages.map((msg: any) => ({
+          sender: msg.role === 'user' ? 'user' : 'bot',
+          text: msg.content
+        }));
+        setChatMessages(messages);
+      }
+    } catch (e: any) {
+      console.error('Failed to load session:', e);
+      // Session not found or expired - create new one
+      createNewSession();
+    }
+  };
+
+  const clearSession = () => {
+    localStorage.removeItem('docdiff_session_id');
+    window.location.reload();
+  };
+
+  const clearComparison = () => {
+    setResult(null);
+    setActiveDiffIndex(null);
+    setBeforeFile(null);
+    setAfterFile(null);
+  };
+
+  const clearChat = () => {
+    setChatMessages([]);
+    setChatInput("");
+  };
+
   const onCompare = async () => {
-  if (!beforeFile || !afterFile) return;
+  if (!beforeFile || !afterFile || !sessionId) return;
   setLoading(true);
   setError(null);
   setResult(null);
@@ -56,6 +121,7 @@ export default function App() {
     const form = new FormData();
     form.append("before_file", beforeFile);
     form.append("after_file", afterFile);
+    form.append("session_id", sessionId);
 
     const { data } = await axios.post(`${API_BASE}/compare`, form, {
       headers: { "Content-Type": "multipart/form-data" },
@@ -78,7 +144,7 @@ export default function App() {
 
 
   const askQuestion = async (question: string, diffs = result?.diffs) => {
-  if (!diffs) return;
+  if (!diffs || !sessionId) return;
   setChatLoading(true);
   setChatMessages((prev) => [...prev, { sender: "user", text: question }]);
 
@@ -86,6 +152,7 @@ export default function App() {
     const form = new FormData();
     form.append("question", question);
     form.append("diffs", JSON.stringify(diffs));
+    form.append("session_id", sessionId);
 
     const response = await fetch(`${API_BASE}/ask`, {
       method: "POST",
@@ -165,6 +232,13 @@ export default function App() {
           <button onClick={onCompare} disabled={!beforeFile || !afterFile || loading}>
             {loading ? "Analyzing…" : "Compare"}
           </button>
+          <button
+            onClick={clearSession}
+            style={{ marginLeft: '8px', background: '#6b7280' }}
+            title="Start a new session and clear history"
+          >
+            New Session
+          </button>
         </div>
       </div>
 
@@ -190,7 +264,16 @@ export default function App() {
         <div className="diff-section">
           {result && (
             <>
-              <h3>Detected Differences</h3>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+                <h3 style={{ margin: 0 }}>Detected Differences</h3>
+                <button
+                  onClick={clearComparison}
+                  style={{ padding: '6px 12px', background: '#ef4444', fontSize: '14px' }}
+                  title="Clear comparison results"
+                >
+                  Clear Diffs
+                </button>
+              </div>
               <div className="diff-list">
                 {result.diffs.map((d, idx) => {
                   const isActive = idx === activeDiffIndex;
@@ -215,7 +298,18 @@ export default function App() {
 
         {/* Right: Chat Interface */}
         <div className="chat-section">
-          <h3>DocDiff Assistant 🤖</h3>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+            <h3 style={{ margin: 0 }}>DocDiff Assistant 🤖</h3>
+            {chatMessages.length > 0 && (
+              <button
+                onClick={clearChat}
+                style={{ padding: '6px 12px', background: '#ef4444', fontSize: '14px' }}
+                title="Clear chat history"
+              >
+                Clear Chat
+              </button>
+            )}
+          </div>
           <div className="chat-box">
             {chatMessages.map((m, i) => (
               <div key={i} className={`chat-message ${m.sender}`}>
@@ -230,9 +324,22 @@ export default function App() {
               placeholder="Ask about the differences..."
               value={chatInput}
               onChange={(e) => setChatInput(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && askQuestion(chatInput)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && chatInput.trim()) {
+                  askQuestion(chatInput);
+                  setChatInput("");
+                }
+              }}
             />
-            <button onClick={() => askQuestion(chatInput)} disabled={!chatInput || chatLoading}>
+            <button
+              onClick={() => {
+                if (chatInput.trim()) {
+                  askQuestion(chatInput);
+                  setChatInput("");
+                }
+              }}
+              disabled={!chatInput || chatLoading}
+            >
               Send
             </button>
           </div>
