@@ -13,6 +13,22 @@ reportlab==4.0.8   # anything >=4.0.4 and <4.1 is fine
 xhtml2pdf==0.2.15
 striprtf==0.0.26
 pandas==2.2.2
-openpyxl==3.1.5        
+openpyxl==3.1.5
 markdown-it-py==3.0.0    # for .md → simple paragraphs
+
+# Database
+sqlalchemy==2.0.25
+asyncpg==0.29.0
+alembic==1.13.1
+
+# Azure OpenAI & LLM
+openai==1.12.0
+aiohttp==3.9.3
+
+# Configuration
+python-dotenv==1.0.1
+pydantic-settings==2.1.0
+
+# Session & UUID
+uuid7==0.1.0
 

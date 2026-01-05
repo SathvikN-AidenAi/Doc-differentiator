@@ -1,49 +1,101 @@
-import os
-import openai
-import asyncio
-from dotenv import load_dotenv
+import json
+from typing import AsyncGenerator
+from openai import AsyncAzureOpenAI
+from app.config import settings
 
-load_dotenv()
-openai.api_key = os.getenv("OPENAI_API_KEY")
+# Initialize Azure OpenAI client
+client = AsyncAzureOpenAI(
+    api_key=settings.AZURE_OPENAI_API_KEY,
+    api_version=settings.AZURE_OPENAI_API_VERSION,
+    azure_endpoint=settings.AZURE_OPENAI_ENDPOINT
+)
 
-async def summarize_diff(before_bytes, after_bytes, result):
-    before_text = ""
-    after_text = ""
-
-    # Try to extract text portions for summarization
-    for diff in result.get("diffs", []):
-        before_text += diff["meta"].get("before", "") + "\n"
-        after_text += diff["meta"].get("after", "") + "\n"
-
-    if not before_text.strip() or not after_text.strip():
-        return
-
-    prompt = f"""
-You are a precise technical summarizer.
-Summarize the main content and differences between these two documents.
-
-Document A:
-{before_text[:4000]}
-
-Document B:
-{after_text[:4000]}
-
-Detected diffs:
-{result['diffs'][:10]}
-
-Return a structured summary with:
-1. Overview of A
-2. Overview of B
-3. Key differences
+async def stream_chat_response(
+    question: str,
+    diffs: str,
+    chat_history: list = None
+) -> AsyncGenerator[str, None]:
     """
+    Stream conversational responses from Azure OpenAI
+    """
+    messages = [
+        {
+            "role": "system",
+            "content": (
+                "You are DocDiff Assistant — a friendly AI that explains document differences conversationally. "
+                "Use natural language, respond quickly, and keep it concise."
+            )
+        }
+    ]
+
+    # Add chat history if provided
+    if chat_history:
+        for msg in chat_history:
+            messages.append({
+                "role": "user" if msg["role"] == "user" else "assistant",
+                "content": msg["content"]
+            })
+
+    # Add current question with context
+    user_message = f"User Question: {question}\n\nDocument Differences:\n{diffs}"
+    if not chat_history:
+        user_message += "\n\nIf the question is unrelated to the diffs, just chat naturally."
+
+    messages.append({"role": "user", "content": user_message})
 
     try:
-        client = openai.AsyncOpenAI()
         response = await client.chat.completions.create(
-            model="gpt-4o-mini",
-            messages=[{"role": "user", "content": prompt}],
-            max_tokens=500,
+            model=settings.AZURE_OPENAI_DEPLOYMENT,
+            messages=messages,
+            stream=True,
+            max_completion_tokens=1000
         )
-        result["summary"] = response.choices[0].message.content
+
+        async for chunk in response:
+            if chunk.choices and len(chunk.choices) > 0:
+                delta = chunk.choices[0].delta
+                if delta.content:
+                    yield delta.content
+
     except Exception as e:
-        result["summary"] = f"LLM summarization failed: {e}"
+        yield f"Error: {str(e)}"
+
+async def get_chat_completion(
+    question: str,
+    diffs: str,
+    chat_history: list = None
+) -> str:
+    """
+    Get non-streaming response from Azure OpenAI
+    """
+    messages = [
+        {
+            "role": "system",
+            "content": (
+                "You are DocDiff Assistant — a friendly AI that explains document differences conversationally. "
+                "Use natural language, respond quickly, and keep it concise."
+            )
+        }
+    ]
+
+    if chat_history:
+        for msg in chat_history:
+            messages.append({
+                "role": "user" if msg["role"] == "user" else "assistant",
+                "content": msg["content"]
+            })
+
+    user_message = f"User Question: {question}\n\nDocument Differences:\n{diffs}"
+    messages.append({"role": "user", "content": user_message})
+
+    try:
+        response = await client.chat.completions.create(
+            model=settings.AZURE_OPENAI_DEPLOYMENT,
+            messages=messages,
+            max_completion_tokens=1000
+        )
+
+        return response.choices[0].message.content
+
+    except Exception as e:
+        return f"Error: {str(e)}"

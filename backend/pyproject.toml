@@ -1,0 +1,67 @@
+[project]
+name = "docdiff-backend"
+version = "0.1.0"
+description = "DocDiff - CVS Internal Document Comparison Tool"
+requires-python = ">=3.10"
+dependencies = [
+    "fastapi",
+    "uvicorn[standard]",
+    "python-multipart",
+    "PyMuPDF==1.24.10",
+    "pdfminer.six",
+    "Pillow",
+    "imagehash",
+    "scikit-image",
+    "numpy",
+    "pydantic",
+    "python-docx==1.1.2",
+    "reportlab==4.0.8",
+    "xhtml2pdf==0.2.15",
+    "striprtf==0.0.26",
+    "pandas==2.2.2",
+    "openpyxl==3.1.5",
+    "markdown-it-py==3.0.0",
+    # Database
+    "sqlalchemy==2.0.25",
+    "asyncpg==0.29.0",
+    "alembic==1.13.1",
+    # Azure OpenAI & LLM
+    "openai>=1.30.0",
+    "aiohttp==3.9.3",
+    # Configuration
+    "python-dotenv==1.0.1",
+    "pydantic-settings==2.1.0",
+    # Session & UUID
+    "uuid7==0.1.0",
+    "cvzone>=1.6.1",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest",
+    "pytest-asyncio",
+    "black",
+    "ruff",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["app"]
+
+[tool.uv]
+dev-dependencies = []
+
+[tool.black]
+line-length = 100
+target-version = ["py310"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "I"]
+ignore = ["E501"]
